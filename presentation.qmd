@@ -1,9 +1,44 @@
 ---
 title: "World Happiness Report"
 author: "Natalia Maldonado"
+date: "`r Sys.Date()`"
 format: revealjs
-theme: night
+theme: white
+transition: fade
+revealjs:
+  font: "Open Sans, Helvetica, Arial, sans-serif"
+  css: |
+    /* Estilo del título */
+    .title-slide h1 {
+      color: #ff6347;  /* Tomate (color vibrante) */
+      font-size: 5em;  /* Título grande */
+      font-weight: bold;
+      text-align: center;  /* Centrado del título */
+      text-transform: uppercase;  /* Texto en mayúsculas */
+      letter-spacing: 6px;  /* Espaciado entre letras */
+      text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);  /* Sombra grande */
+      margin-top: 150px;  /* Espacio desde arriba */
+    }
+    
+    /* Estilo del subtítulo (fecha) */
+    .title-slide .subtitle {
+      font-size: 2em;
+      color: #888888; /* Gris suave para la fecha */
+      font-style: italic;
+      text-align: center;  /* Centrado de la fecha */
+      margin-top: 30px;  /* Espacio debajo del título */
+    }
 ---
+## Welcome to the World Happiness Report
+
+This is a data visualization project presented on: `r Sys.Date()`
+
+---
+## Welcome to the World Happiness Report
+
+This is a data visualization project presented on: `r Sys.Date()`
+
+
 ## Introducción
 
 En esta presentación, exploraremos los datos del World Happiness Report.

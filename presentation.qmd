@@ -7,35 +7,119 @@ theme: white
 transition: fade
 ---
 
-## Data
+
 
 ```{r}
-# Cargar librerías
+# Cargar librerías necesarias
 library(ggplot2)
 library(dplyr)
 library(readr) # Asegúrate de cargar esta librería
 library(knitr)
 library(kableExtra)
 library(readxl)
+library(plotly)  # Para gráficos interactivos
+library(RColorBrewer)  # Para la paleta de colores
+library(sf)
+```
+## Data
+```{r}
 # Cargar datos
-data_happiness <- read_excel("data/data_hapiness.xlsx")
+data_happiness <- read_excel("data/data_hapiness.xlsx") |> 
+  rename(LifeLadder = Score)  # Renombrar columna a LifeLadder para claridad
 
-# Mostrar las primeras 10 filas
+# Modificar las regiones (realizando las uniones que mencionamos)
+data_happiness <- data_happiness %>%
+  mutate(Region = recode(Region,
+    "Central and Eastern Europe" = "Central and Eastern Europe + CIS",  # Unimos con CIS
+    "Commonwealth of Independent States" = "Central and Eastern Europe + CIS",  # Unimos con Central and Eastern Europe
+    "Southeast Asia" = "Southeast Asia + East Asia",  # Unimos con East Asia
+    "East Asia" = "Southeast Asia + East Asia"  # Unimos con Southeast Asia
+  ))
+
+# Cargar el otro conjunto de datos
+score_happiness <- read_excel("data/Score_hapiness.xlsx")
+
+# Mostrar las primeras filas para verificar que los datos están bien cargados
 head(data_happiness |> select(-Elegidos), 10) %>% 
   kable("html", caption = "First 10 Rows of Happiness Data") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 13)
+
+head(score_happiness , 10) %>% 
+  kable("html", caption = "First 10 Rows of Score Data") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 13)
+
 ```
+
+## Code
+
+
+```{r}
+
+# Cargar el shapefile (asegúrate de tener el archivo .shp correcto)
+shapefile_path <- "SHAPES/ne_10m_admin_0_countries.shp"
+world_map <- st_read(shapefile_path, quiet = TRUE)
+
+# Corregir los nombres de los países en el shapefile según las coincidencias
+world_map$NAME <- recode(world_map$NAME,
+                         "Palestine" = "State of Palestine",
+                         "Taiwan" = "Taiwan Province of China",
+                         "Turkey" = "Turkiye",
+                         "United States of America" = "United States",
+                         "Côte d'Ivoire" = "Ivory Coast",
+                         "Bosnia and Herz." = "Bosnia and Herzegovina",
+                         "Congo" = "Congo (Brazzaville)",
+                         "Dominican Rep." = "Dominican Republic",
+                         "S. Sudan" = "South Sudan",
+                         "Dem. Rep. Congo" = "Congo (Kinshasa)",
+                         "Puerto Rico" = "United States")
+
+# Unir el shapefile con los datos de felicidad
+world_map <- world_map %>%
+  left_join(score_happiness |> filter(year == "2023"), by = c("NAME" = "Country"))
+
+# Asignar colores
+world_map$color <- ifelse(is.na(world_map$Happiness), NA, world_map$Happiness)
+
+# Crear el mapa con ggplot
+p_map <- ggplot(data = world_map) +
+  geom_sf(aes(fill = color, text = paste("Country: ", NAME, "<br>Happiness Score: ", Happiness)), color = "gray", size = 0.0005) +
+  scale_fill_viridis_c(option = "C", na.value = "lightgray", name = "Happiness Score") +
+  theme_minimal() +
+  labs(title = "World Happiness by Country") +
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 16, face = "bold"),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 10))
+
+# Convertir el gráfico ggplot a interactivo con plotly
+interactive_map <- ggplotly(p_map, tooltip = "text")  # Usamos el tooltip para mostrar el texto cuando se hace clic o pasa el ratón
+
+# Mostrar el mapa interactivo
+interactive_map
+
+```
+
 ## Quarto
 ```{r}
-# Supongamos que ya tienes tus datos cargados
-library(ggplot2)
-library(plotly)
+# Filtrar los datos para el GDP de 2023 en data_happiness
+data_happiness_2023 <- data_happiness %>%
+  filter(year == 2023)
+
+# Filtrar los datos para el Happiness Score de 2024 en Score_Happiness
+score_2024 <- score_happiness %>%
+  filter(year == 2024)
+
+# Realizar la unión de las tablas por el nombre del país
+merged_data <- data_happiness_2023 %>%
+  left_join(score_2024, by = "Country")
 
 # Crear el gráfico con ggplot2
-p <- ggplot(data_happiness, aes(x = LogGDP, y = Score, color = Region)) +
-  geom_point(alpha = 0.7, size = 3) +  # Puntos con transparencia
-  scale_color_brewer(palette = "Set1") +  # Paleta de colores para las regiones
-  labs(title = "Happiness Score vs LogGDP by Region", x = "LogGDP (Logarithmic GDP)", y = "Happiness Score") +
+p <- ggplot(merged_data, aes(x = LogGDP, y = LifeLadder, color = Region)) +
+  geom_point(aes(text = Country), alpha = 0.7, size = 3) +  # Puntos con transparencia y mostrar solo el país
+  scale_color_brewer(palette = "Set3") +  # Usar Set3 para obtener más colores distintos (paleta de 12 colores)
+  labs(title = "Happiness Score vs LogGDP by Region (2023 vs 2024)", 
+       x = "LogGDP (Logarithmic GDP, 2023)", 
+       y = "Happiness Score (2024)") +
   theme_minimal() + 
   theme(
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
@@ -45,64 +129,48 @@ p <- ggplot(data_happiness, aes(x = LogGDP, y = Score, color = Region)) +
   )
 
 # Convertir el gráfico ggplot2 a un gráfico interactivo con plotly
-interactive_p <- ggplotly(p)
+interactive_p <- ggplotly(p, tooltip = "text")  # Mostrar solo el país al hacer clic
 
 # Mostrar el gráfico interactivo
 interactive_p
-
-
 ```
-
-## Bullets
-
-When you click the **Render** button a document will be generated that includes:
-
--   Content authored with markdown
--   Output from executable code
-
-## Code
-
-When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
-
+##Hola
 ```{r}
-# Instalar y cargar librerías necesarias
 
-library(plotly)
-library(sf)
-library(dplyr)
-library(ggplot2)
+# 1. Filtrar emociones positivas (Positive Affect) del año 2023
+emotions_2023 <- data_happiness %>%
+  filter(year == 2023) %>%
+  select(Country, PosAffect)
 
-# Cargar el mapa mundial en formato shapefile
-world_map <- st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
+# 2. Seleccionar Top 5 y Bottom 5 países según Happiness Score del año 2024
+top_bottom_5 <- score_happiness %>%
+  filter(year == 2024) %>%
+  select(Country, Happiness) %>%
+  arrange(desc(Happiness)) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= 5 | rank > (n() - 5))  # Seleccionar los 5 primeros y 5 últimos
 
+# 3. Unir con emociones positivas (tamaño de las bolitas)
+top_bottom_5_data <- top_bottom_5 %>%
+  left_join(emotions_2023, by = "Country")
 
-
-# Verificar que los datos se hayan cargado correctamente y que las columnas sean correctas
-head(data_happiness)
-
-# Unir los datos del mapa con los puntajes de felicidad (Score)
-# Asegúrate de que la columna de los países en tu conjunto de datos coincida con la columna correspondiente en el shapefile
-world_map <- world_map %>%
-  left_join(data_happiness, by = c("NAME" = "Country"))  # Asegúrate de usar el nombre correcto de las columnas
-
-# Verifica la unión de datos
-head(world_map)
-
-# Crear el gráfico interactivo con plotly
-p <- ggplot(data = world_map) +
-  geom_sf(aes(fill = Score)) +  # Colorear el mapa por el índice de felicidad
-  scale_fill_viridis_c(option = "C", name = "Happiness Score 2023") +  # Usar una paleta de colores
+# 4. Crear el gráfico
+p <- ggplot(top_bottom_5_data, aes(x = reorder(Country, Happiness), y = Happiness, size = PosAffect)) +
+  geom_point(shape = 21, color = "black", fill = "steelblue", alpha = 0.8) +  # Todas las bolitas en el mismo color
+  coord_flip() +  # Voltear ejes para facilitar la lectura
+  scale_size(range = c(5, 15), name = "Positive Affect") +  # Tamaño de las bolitas
+  labs(
+    title = "Top 5 & Bottom 5 Countries by Happiness Score",
+    x = "Country",
+    y = "Happiness Score"
+  ) +
   theme_minimal() +
   theme(
-    legend.position = "bottom",
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
-  ) +
-  labs(title = "World Happiness Index by Country (2023)")
-
-# Convertir el gráfico ggplot a interactivo con plotly
-interactive_map <- ggplotly(p)
-
-# Mostrar el mapa interactivo
-interactive_map
-
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.position = "right"
+  )
+p
 ```
+

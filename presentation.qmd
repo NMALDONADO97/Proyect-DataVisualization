@@ -5,59 +5,53 @@ date: "`r Sys.Date()`"
 format: revealjs
 theme: white
 transition: fade
-revealjs:
-  font: "Open Sans, Helvetica, Arial, sans-serif"
-  css: |
-    /* Estilo del título */
-    .title-slide h1 {
-      color: #ff6347;  /* Tomate (color vibrante) */
-      font-size: 5em;  /* Título grande */
-      font-weight: bold;
-      text-align: center;  /* Centrado del título */
-      text-transform: uppercase;  /* Texto en mayúsculas */
-      letter-spacing: 6px;  /* Espaciado entre letras */
-      text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2);  /* Sombra grande */
-      margin-top: 150px;  /* Espacio desde arriba */
-    }
-    
-    /* Estilo del subtítulo (fecha) */
-    .title-slide .subtitle {
-      font-size: 2em;
-      color: #888888; /* Gris suave para la fecha */
-      font-style: italic;
-      text-align: center;  /* Centrado de la fecha */
-      margin-top: 30px;  /* Espacio debajo del título */
-    }
 ---
-## Welcome to the World Happiness Report
 
-This is a data visualization project presented on: `r Sys.Date()`
-
----
-## Welcome to the World Happiness Report
-
-This is a data visualization project presented on: `r Sys.Date()`
-
-
-## Introducción
-
-En esta presentación, exploraremos los datos del World Happiness Report.
-
-## Datos
+## Data
 
 ```{r}
 # Cargar librerías
 library(ggplot2)
 library(dplyr)
 library(readr) # Asegúrate de cargar esta librería
-
+library(knitr)
+library(kableExtra)
+library(readxl)
 # Cargar datos
-data_hapiness <- read_delim("data/data_hapiness.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+data_happiness <- read_excel("data/data_hapiness.xlsx")
 
+# Mostrar las primeras 10 filas
+head(data_happiness |> select(-Elegidos), 10) %>% 
+  kable("html", caption = "First 10 Rows of Happiness Data") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 13)
 ```
 ## Quarto
+```{r}
+# Supongamos que ya tienes tus datos cargados
+library(ggplot2)
+library(plotly)
 
-Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.
+# Crear el gráfico con ggplot2
+p <- ggplot(data_happiness, aes(x = LogGDP, y = Score, color = Region)) +
+  geom_point(alpha = 0.7, size = 3) +  # Puntos con transparencia
+  scale_color_brewer(palette = "Set1") +  # Paleta de colores para las regiones
+  labs(title = "Happiness Score vs LogGDP by Region", x = "LogGDP (Logarithmic GDP)", y = "Happiness Score") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.position = "bottom"
+  )
+
+# Convertir el gráfico ggplot2 a un gráfico interactivo con plotly
+interactive_p <- ggplotly(p)
+
+# Mostrar el gráfico interactivo
+interactive_p
+
+
+```
 
 ## Bullets
 
@@ -71,5 +65,44 @@ When you click the **Render** button a document will be generated that includes:
 When you click the **Render** button a presentation will be generated that includes both content and the output of embedded code. You can embed code like this:
 
 ```{r}
-1 + 1
+# Instalar y cargar librerías necesarias
+
+library(plotly)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# Cargar el mapa mundial en formato shapefile
+world_map <- st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
+
+
+
+# Verificar que los datos se hayan cargado correctamente y que las columnas sean correctas
+head(data_happiness)
+
+# Unir los datos del mapa con los puntajes de felicidad (Score)
+# Asegúrate de que la columna de los países en tu conjunto de datos coincida con la columna correspondiente en el shapefile
+world_map <- world_map %>%
+  left_join(data_happiness, by = c("NAME" = "Country"))  # Asegúrate de usar el nombre correcto de las columnas
+
+# Verifica la unión de datos
+head(world_map)
+
+# Crear el gráfico interactivo con plotly
+p <- ggplot(data = world_map) +
+  geom_sf(aes(fill = Score)) +  # Colorear el mapa por el índice de felicidad
+  scale_fill_viridis_c(option = "C", name = "Happiness Score 2023") +  # Usar una paleta de colores
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  labs(title = "World Happiness Index by Country (2023)")
+
+# Convertir el gráfico ggplot a interactivo con plotly
+interactive_map <- ggplotly(p)
+
+# Mostrar el mapa interactivo
+interactive_map
+
 ```

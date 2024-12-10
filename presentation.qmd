@@ -1,9 +1,25 @@
 ---
-title: "Untitled"
+title: "World Happiness Report"
+author: "Natalia Maldonado"
 format: revealjs
-editor: visual
+theme: night
 ---
+## Introducción
 
+En esta presentación, exploraremos los datos del World Happiness Report.
+
+## Datos
+
+```{r}
+# Cargar librerías
+library(ggplot2)
+library(dplyr)
+library(readr) # Asegúrate de cargar esta librería
+
+# Cargar datos
+data_hapiness <- read_delim("data/data_hapiness.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+```
 ## Quarto
 
 Quarto enables you to weave together content and executable code into a finished presentation. To learn more about Quarto presentations see <https://quarto.org/docs/presentations/>.

@@ -8,6 +8,9 @@ transition: fade
 ---
 
 
+```{r}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
 
 ```{r}
 # Cargar librerías necesarias
@@ -20,46 +23,110 @@ library(readxl)
 library(plotly)  # Para gráficos interactivos
 library(RColorBrewer)  # Para la paleta de colores
 library(sf)
-```
-## Data
-```{r}
-# Cargar datos
-data_happiness <- read_excel("data/data_hapiness.xlsx") |> 
-  rename(LifeLadder = Score)  # Renombrar columna a LifeLadder para claridad
+library(gt)
+library(scales)
 
-# Modificar las regiones (realizando las uniones que mencionamos)
+```
+
+## Data Sources and Collection Process
+
+### Sources
+<span style="font-size: 22px;">The data used in the World Happiness Report is derived from:
+<ul>
+  <li><span style="font-size: 22px;"><b>Gallup World Poll</b>: Provides survey responses from over 150 countries.</span></li>
+  <li><span style="font-size: 22px;"><b>World Bank</b>: Supplies economic indicators like GDP per capita.</span></li>
+  <li><span style="font-size: 22px;"><b>World Health Organization (WHO)</b>: Offers health-related data, such as life expectancy.</span></li>
+</ul>
+  
+### Data Collection Process
+- **Surveys**: Respondents answer a series of questions about their lives and perceptions.
+- **Economic and Health Data**: Collected from global institutions to complement survey responses.
+- **Standardization**: Data is adjusted for comparability, such as converting GDP to purchasing power parity (PPP).
+- **Key Calculation**: Combines survey results and external indicators to compute the *Happiness Score*.
+
+
+
+
+## Data
+
+```{r}
+#data_other_variables
+data_happiness <- read_excel("data/data_hapiness.xlsx") |> 
+  select(-Score)
+
 data_happiness <- data_happiness %>%
   mutate(Region = recode(Region,
-    "Central and Eastern Europe" = "Central and Eastern Europe + CIS",  # Unimos con CIS
-    "Commonwealth of Independent States" = "Central and Eastern Europe + CIS",  # Unimos con Central and Eastern Europe
-    "Southeast Asia" = "Southeast Asia + East Asia",  # Unimos con East Asia
-    "East Asia" = "Southeast Asia + East Asia"  # Unimos con Southeast Asia
+    "Central and Eastern Europe" = "Central and Eastern Europe + CIS",  
+    "Commonwealth of Independent States" = "Central and Eastern Europe + CIS",
+    "North America and ANZ" = "NorthAmerica + ANZ +Western EU",
+    "Western Europe" = "NorthAmerica + ANZ +Western EU",
+    "Southeast Asia" = "Asia",  
+    "East Asia" = "Asia",
+    "South Asia"="Asia",
+    "Sub-Saharan Africa"= "Middle East and Africa",
+    "Middle East and North Africa"= "Middle East and Africa"
   ))
 
-# Cargar el otro conjunto de datos
+#Data_score
 score_happiness <- read_excel("data/Score_hapiness.xlsx")
 
-# Mostrar las primeras filas para verificar que los datos están bien cargados
-head(data_happiness |> select(-Elegidos), 10) %>% 
-  kable("html", caption = "First 10 Rows of Happiness Data") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 13)
+# Table data
+data_happiness |> 
+  select(-Elegidos) |>  
+  head(6) |>  
+  gt() |>  
+  cols_align(align = "left") |>  
+  tab_spanner("Happiness Data", everything()) |>  
+  tab_options(column_labels.background.color = "#00A4E1") |>  
+  tab_style(
+    style = cell_text(size = pct(60)),  
+    locations = cells_body()  
+  ) |> 
+  tab_style(
+    style = cell_text(weight = "bold"),  
+    locations = list(cells_column_labels(), cells_column_spanners())  
+  )
+#data_scores
+score_happiness |> 
+  head(6) |>  
+  gt() |>  
+  cols_align(align = "left") |>  
+  tab_spanner("Happiness Score Data", everything()) |>  
+  tab_options(column_labels.background.color = "#00A4E1") |>  
+  tab_style(
+    style = cell_text(size = pct(60)),  
+    locations = cells_body()  
+  ) |> 
+  tab_style(
+    style = cell_text(weight = "bold"),  
+    locations = list(cells_column_labels(), cells_column_spanners())  
+  )
 
-head(score_happiness , 10) %>% 
-  kable("html", caption = "First 10 Rows of Score Data") %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 13)
 
 ```
 
-## Code
+## Variables 
 
+<ul>
+  <li><span style="font-size: 22px;"><b>Ladder Score</b>: Self-reported happiness on a 0–10 scale.</span></li>
+  <li><span style="font-size: 22px;"><b>Log GDP per Capita</b>: Adjusted economic output per person adjust for PPA (log-transformed).</span></li>
+  <li><span style="font-size: 22px;"><b>Social Support</b>: % of respondents with reliable friends or family.</span></li>
+  <li><span style="font-size: 22px;"><b>Healthy Life Expectancy</b>: Expected years of healthy living.</span></li>
+  <li><span style="font-size: 22px;"><b>Freedom to Make Life Choices</b>: % feeling free to make personal decisions.</span></li>
+  <li><span style="font-size: 22px;"><b>Generosity</b>: % donating money to charity recently.</span></li>
+  <li><span style="font-size: 22px;"><b>Perceptions of Corruption</b>: Trust in public institutions (inverse).</span></li>
+  <li><span style="font-size: 22px;"><b>Dystopia Residual</b>: Captures unmeasured influences on happiness.</span></li>
+</ul>
+
+## Map
 
 ```{r}
 
-# Cargar el shapefile (asegúrate de tener el archivo .shp correcto)
+# Shapefile
 shapefile_path <- "SHAPES/ne_10m_admin_0_countries.shp"
 world_map <- st_read(shapefile_path, quiet = TRUE)
 
-# Corregir los nombres de los países en el shapefile según las coincidencias
+# Correcting some names
 world_map$NAME <- recode(world_map$NAME,
                          "Palestine" = "State of Palestine",
                          "Taiwan" = "Taiwan Province of China",
@@ -73,14 +140,14 @@ world_map$NAME <- recode(world_map$NAME,
                          "Dem. Rep. Congo" = "Congo (Kinshasa)",
                          "Puerto Rico" = "United States")
 
-# Unir el shapefile con los datos de felicidad
+#Final shape
 world_map <- world_map %>%
   left_join(score_happiness |> filter(year == "2023"), by = c("NAME" = "Country"))
 
-# Asignar colores
+# Colors
 world_map$color <- ifelse(is.na(world_map$Happiness), NA, world_map$Happiness)
 
-# Crear el mapa con ggplot
+# Map
 p_map <- ggplot(data = world_map) +
   geom_sf(aes(fill = color, text = paste("Country: ", NAME, "<br>Happiness Score: ", Happiness)), color = "gray", size = 0.0005) +
   scale_fill_viridis_c(option = "C", na.value = "lightgray", name = "Happiness Score") +
@@ -91,15 +158,152 @@ p_map <- ggplot(data = world_map) +
         legend.title = element_text(size = 12),
         legend.text = element_text(size = 10))
 
-# Convertir el gráfico ggplot a interactivo con plotly
-interactive_map <- ggplotly(p_map, tooltip = "text")  # Usamos el tooltip para mostrar el texto cuando se hace clic o pasa el ratón
+# Interactiv map
+interactive_map <- ggplotly(p_map, tooltip = "text") 
 
-# Mostrar el mapa interactivo
 interactive_map
-
 ```
 
-## Quarto
+## Map
+- This is an interactive map that allows users to explore happiness levels by country.  
+- Users can zoom in and focus on specific countries to see their happiness indicators, making it easy to analyze and visually compare global differences.
+- Happiness levels are clearly distributed geographically: Northern regions, such as Western Europe and North America, show darker colors representing higher happiness, while Sub-Saharan Africa and parts of Central Asia display lighter colors.  
+
+
+## Distribution of Happiness
+
+```{r}
+ggplot(score_happiness %>%
+         left_join(data_happiness %>% select(Country, Region), by = "Country", relationship = "many-to-many") %>%
+         filter(Region != 0),  
+       aes(y = Region, x = Happiness, fill = Region)) + 
+  geom_violin(trim = FALSE, alpha = 0.7) +  
+  scale_fill_manual(
+    values = c(
+      "Asia" = "#E41A1C",  
+      "NorthAmerica + ANZ +Western EU" = "#984EA3",  
+      "Middle East and Africa" = "#FF7F00",  
+      "Latin America and Caribbean" = "#4DAF4A",  
+      "Central and Eastern Europe + CIS" = "#377EB8"
+    )
+  ) +
+  labs(
+    title = "Comparison of the Happiness Report between Regions",
+    y = "Region",  
+    x = "Happiness Score"  
+  ) +
+  scale_y_discrete(labels = c(
+    "South Asia" = "S.Asia", 
+    "Southeast Asia + East Asia" = "(Southeast + East)Asia",
+    "Sub-Saharan Africa" = "Sub-Saharan Africa", 
+    "Western Europe" = "Western EU", 
+    "North America and ANZ" = "NorthAmerica + ANZ",
+    "Latin America and Caribbean" = "Latin America and Caribbean", 
+    "Central and Eastern Europe + CIS" = "(Central&Eastern)EU + CIS")) +  
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.position = "none",  
+    panel.grid.major = element_line(color = "gray90", size = 0.5),  
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 10), 
+    axis.title.x = element_text(size = 14),  
+    axis.title.y = element_text(size = 14)   
+  )
+
+```
+## Distribution of Happiness  
+
+- Western Europe and North America have higher concentrations toward the upper end (6+).  
+- Sub-Saharan Africa and the Middle East are more concentrated toward the lower scores.  
+- Nordic countries, known for their economic and social stability, dominate the higher positions.  
+- Countries facing conflicts or significant inequality, such as those in Africa and parts of Asia, are more present in the lower extremes. This shows a strong regional component in reported happiness.  
+
+
+## Score Top and Bottom
+
+```{r}
+# Possitive affect 2023
+emotions_2023 <- data_happiness %>%
+  filter(year == 2023) %>%
+  select(Country, PosAffect)
+
+# Top 5 and bottom 5
+top_bottom_5 <- score_happiness %>%
+  filter(year == 2024) %>%
+  select(Country, Happiness) %>%
+  arrange(desc(Happiness)) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank <= 5 | rank > (n() - 5)) 
+
+
+top_bottom_5_data <- top_bottom_5 %>%
+  left_join(emotions_2023, by = "Country")
+
+# 4. Crear el gráfico con colores representando las emociones positivas
+p <- ggplot(top_bottom_5_data, aes(x = reorder(Country, Happiness), y = Happiness, fill = PosAffect)) +
+  geom_point(shape = 21, color = "black", size = 6, alpha = 0.8) +  # Bolitas de color con borde negro
+  coord_flip() +  # Voltear ejes para facilitar la lectura
+  scale_fill_viridis_c(option = "C", name = "Positive Affect") +  # Colores usando la paleta viridis
+  labs(
+    title = "Top 5 & Bottom 5 Countries by Happiness Score",
+    x = "Country",
+    y = "Happiness Score"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.position = "right"
+  )
+
+print(p)
+```
+## Top and Bottom Scores  
+
+- Among the highest-scoring countries, Israel stands out. Despite its high happiness score, its Positive Affect score is not as high as expected.  
+- In contrast, countries like Congo, ranked at the bottom of the happiness list, show a higher Positive Affect score compared to Israel.  
+- This highlights a disconnect between daily positive emotions and overall reported happiness scores.  
+
+## Correlation
+
+```{r}
+# Cargar las librerías necesarias
+library(ggplot2)
+library(reshape2)
+library(ggcorrplot)
+
+# Paso 1: Filtrar los datos por año y eliminar la columna 'Elegidos'
+data_2023 <- subset(data_happiness, year == 2023) |> select(-Elegidos)
+happiness_2024 <- subset(score_happiness, year == 2024)
+
+# Paso 2: Unir las tablas por la columna 'Country'
+combined_data <- merge(data_2023, happiness_2024, by = "Country")
+
+# Paso 3: Eliminar filas con valores NA
+combined_data_clean <- na.omit(combined_data)
+
+# Paso 4: Calcular la matriz de correlación sobre los datos limpios
+correlation_matrix <- cor(combined_data_clean[, sapply(combined_data_clean, is.numeric)])
+
+# Paso 5: Crear el heatmap
+ggcorrplot(correlation_matrix, 
+           method = "square", # Puedes elegir entre 'circle', 'square', 'number', etc.
+           type = "lower",    # Muestra solo la mitad inferior de la matriz
+           lab = TRUE,        # Muestra los valores de correlación dentro del gráfico
+           lab_size = 3,      # Tamaño de los valores de correlación
+           colors = c("blue", "white", "red"), # Colores del gráfico
+           title = "Correlation Heatmap between Variables")
+
+# Ver el conjunto de datos combinado sin NA
+View(combined_data_clean)
+```
+
+## GDP vs Happiness
+
 ```{r}
 # Filtrar los datos para el GDP de 2023 en data_happiness
 data_happiness_2023 <- data_happiness %>%
@@ -113,13 +317,29 @@ score_2024 <- score_happiness %>%
 merged_data <- data_happiness_2023 %>%
   left_join(score_2024, by = "Country")
 
-# Crear el gráfico con ggplot2
-p <- ggplot(merged_data, aes(x = LogGDP, y = LifeLadder, color = Region)) +
-  geom_point(aes(text = Country), alpha = 0.7, size = 3) +  # Puntos con transparencia y mostrar solo el país
-  scale_color_brewer(palette = "Set3") +  # Usar Set3 para obtener más colores distintos (paleta de 12 colores)
-  labs(title = "Happiness Score vs LogGDP by Region (2023 vs 2024)", 
-       x = "LogGDP (Logarithmic GDP, 2023)", 
-       y = "Happiness Score (2024)") +
+p <- ggplot(merged_data, aes(x = OriginalGDP, y = Happiness, color = Region)) +
+  geom_point(alpha = 0.8, size = 4) +  # Puntos más grandes y opacos
+  geom_smooth(method = "lm", color = "black", size = 1, se = FALSE) +  # Línea de tendencia sin sombra
+  scale_color_manual(
+    values = c(
+      "Asia" = "#E41A1C",  
+      "(Southeast + East)Asia" = "#A65628",  
+      "S. Asia" = "#4DAF4A",  
+      "NorthAmerica + ANZ +Western EU" = "#984EA3",  
+      "Middle East and Africa" = "#FF7F00",  
+      "Latin America and Caribbean" = "#4DAF4A",  
+      "Central and Eastern Europe + CIS" = "#377EB8"
+    )
+  ) +
+  scale_x_continuous(
+    trans = 'log10', 
+    labels = scales::label_dollar(prefix = "USD ", scale = 1, accuracy = 1)  # Ajuste para mostrar en millones
+  ) +
+  labs(
+    title = "Happiness Score vs GDP by Region", 
+    x = "GDP per Capita (Log10 Scale, 2023)", 
+    y = "Happiness Score (2024)"
+  ) +
   theme_minimal() + 
   theme(
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
@@ -128,49 +348,76 @@ p <- ggplot(merged_data, aes(x = LogGDP, y = LifeLadder, color = Region)) +
     legend.position = "bottom"
   )
 
-# Convertir el gráfico ggplot2 a un gráfico interactivo con plotly
-interactive_p <- ggplotly(p, tooltip = "text")  # Mostrar solo el país al hacer clic
+print(p)
 
-# Mostrar el gráfico interactivo
-interactive_p
+
 ```
-##Hola
+## Correlation: GDP vs Happiness  
+
+- Latin America and the Caribbean stand out by consistently appearing above the trendline, showing they are happier than their economic levels suggest.  
+- In contrast, some regions with high GDP levels, such as the Middle East, do not necessarily have happiness levels corresponding to their wealth.  
+- This highlights that cultural and social factors can be more important for well-being than economic metrics alone.  
+
+
+## Distribution possitive Affect
+
 ```{r}
-
-# 1. Filtrar emociones positivas (Positive Affect) del año 2023
-emotions_2023 <- data_happiness %>%
-  filter(year == 2023) %>%
-  select(Country, PosAffect)
-
-# 2. Seleccionar Top 5 y Bottom 5 países según Happiness Score del año 2024
-top_bottom_5 <- score_happiness %>%
-  filter(year == 2024) %>%
-  select(Country, Happiness) %>%
-  arrange(desc(Happiness)) %>%
-  mutate(rank = row_number()) %>%
-  filter(rank <= 5 | rank > (n() - 5))  # Seleccionar los 5 primeros y 5 últimos
-
-# 3. Unir con emociones positivas (tamaño de las bolitas)
-top_bottom_5_data <- top_bottom_5 %>%
-  left_join(emotions_2023, by = "Country")
-
-# 4. Crear el gráfico
-p <- ggplot(top_bottom_5_data, aes(x = reorder(Country, Happiness), y = Happiness, size = PosAffect)) +
-  geom_point(shape = 21, color = "black", fill = "steelblue", alpha = 0.8) +  # Todas las bolitas en el mismo color
-  coord_flip() +  # Voltear ejes para facilitar la lectura
-  scale_size(range = c(5, 15), name = "Positive Affect") +  # Tamaño de las bolitas
-  labs(
-    title = "Top 5 & Bottom 5 Countries by Happiness Score",
-    x = "Country",
-    y = "Happiness Score"
+ggplot(data =data_happiness%>%
+         filter(Region != 0), aes(y = Region, x = PosAffect, fill = Region)) + 
+  geom_boxplot(alpha = 0.7) +  
+  scale_fill_manual(
+    values = c(
+      "Asia" = "#E41A1C",  
+      "NorthAmerica + ANZ +Western EU" = "#984EA3",  
+      "Middle East and Africa" = "#FF7F00",  
+      "Latin America and Caribbean" = "#4DAF4A",  
+      "Central and Eastern Europe + CIS" = "#377EB8"
+    )
   ) +
+  labs(
+    title = "Comparison of Positive Affect by Region",
+    y = "Region",  
+    x = "Positive Affect"  
+  ) +
+  scale_y_discrete(labels = c(
+    "South Asia" = "S.Asia", 
+    "Southeast Asia + East Asia" = "(Southeast + East)Asia",
+    "Sub-Saharan Africa" = "Sub-Saharan Africa", 
+    "Western Europe" = "Western EU", 
+    "North America and ANZ" = "NorthAmerica + ANZ",
+    "Latin America and Caribbean" = "Latin America and Caribbean", 
+    "Central and Eastern Europe + CIS" = "(Central&Eastern)EU + CIS")) +  
   theme_minimal() +
   theme(
     plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
     axis.text = element_text(size = 12),
     axis.title = element_text(size = 14),
-    legend.position = "right"
+    legend.position = "none",  
+    panel.grid.major = element_line(color = "gray90", size = 0.5),  
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(size = 10), 
+    axis.title.x = element_text(size = 14),  
+    axis.title.y = element_text(size = 14)   
   )
-p
+
 ```
 
+## Trend: Distribution of Positive Affect  
+
+- Latin America leads in Positive Affect, reinforcing its standout position in the GDP vs Happiness correlation.  
+- Other regions present interesting patterns:  
+  - Western Europe shows more moderate Positive Affect but higher happiness scores.  
+  - Sub-Saharan Africa has high Positive Affect levels despite low happiness scores.  
+- This suggests that daily emotions don’t always align with overall perceptions of well-being.  
+
+## Conclusion  
+
+- Measuring happiness is more complex than it seems, as a direct question may oversimplify what “being happy” truly means.  
+- This analysis reveals that daily emotions (Positive Affect) and reported happiness are not perfectly aligned. For example:  
+  - Congo shows high Positive Affect but low happiness scores.  
+  - Israel shows the opposite.  
+
+## Conclusion 
+
+- Happiness depends not only on what we feel daily but also on social, cultural, and economic factors that shape how people perceive their lives overall.  
+- This project aimed to explore these interactions and highlight that understanding happiness requires looking beyond numbers, focusing on the stories data can tell.  

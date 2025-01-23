@@ -35,15 +35,15 @@ library(patchwork)
 <span style="font-size: 22px;">The data used in the World Happiness Report is derived from:
 <ul>
   <li><span style="font-size: 22px;"><b>Gallup World Poll</b>: Provides survey responses from over 150 countries.</span></li>
-  <li><span style="font-size: 22px;"><b>World Bank</b>: Supplies economic indicators like GDP per capita.</span></li>
+  <li><span style="font-size: 22px;"><b>World Bank</b>: Supplies economic indicators like GDP per capita adjust for purchasing power parity.</span></li>
   <li><span style="font-size: 22px;"><b>World Health Organization (WHO)</b>: Offers health-related data, such as life expectancy.</span></li>
 </ul>
-  
+
 ### Data Collection Process
-- **Surveys**: Respondents answer a series of questions about their lives and perceptions.
-- **Economic and Health Data**: Collected from global institutions to complement survey responses.
-- **Standardization**: Data is adjusted for comparability, such as converting GDP to purchasing power parity (PPP).
-- **Key Calculation**: Combines survey results and external indicators to compute the *Happiness Score*.
+- **Surveys**: Respondents answer a series of questions about their lives and perceptions. Gallup collects data through face-to-face, telephone, and online surveys, using a probabilistic sampling method to ensure the sample is representative of the population.
+- **Economic and Health Data**: Collected from global institutions such as the World Bank and WHO to complement survey responses, ensuring a more comprehensive picture of the factors influencing happiness.
+</span>
+
 
 
 
@@ -108,16 +108,38 @@ score_happiness |>
 
 ## Variables 
 
-<ul>
-  <li><span style="font-size: 22px;"><b>Ladder Score</b>: Self-reported happiness on a 0–10 scale.</span></li>
-  <li><span style="font-size: 22px;"><b>Log GDP per Capita</b>: Adjusted economic output per person adjust for PPA (log-transformed).</span></li>
-  <li><span style="font-size: 22px;"><b>Social Support</b>: % of respondents with reliable friends or family.</span></li>
-  <li><span style="font-size: 22px;"><b>Healthy Life Expectancy</b>: Expected years of healthy living.</span></li>
-  <li><span style="font-size: 22px;"><b>Freedom to Make Life Choices</b>: % feeling free to make personal decisions.</span></li>
-  <li><span style="font-size: 22px;"><b>Generosity</b>: % donating money to charity recently.</span></li>
-  <li><span style="font-size: 22px;"><b>Perceptions of Corruption</b>: Trust in public institutions (inverse).</span></li>
-  <li><span style="font-size: 22px;"><b>Dystopia Residual</b>: Captures unmeasured influences on happiness.</span></li>
+<ul style="line-height: 0.6;">
+  <li><span style="font-size: 22px;"><b>Log GDP per Capita</b>: Adjusted economic output per person adjusted for purchasing power parity.  
+    <br><b>Source:</b> World Bank.</span></li>
+  <li><span style="font-size: 22px;"><b>Social Support</b>: % of respondents with reliable friends or family.  
+    <br><b>Question:</b> *"Do you have family or friends you can count on in times of trouble?"*  
+    <br><b>Source:</b> Gallup World Poll.</span></li>
+  <li><span style="font-size: 22px;"><b>Healthy Life Expectancy</b>: Expected years of healthy living.  
+    <br><b>Source:</b> World Health Organization (WHO).</span></li>
+  <li><span style="font-size: 22px;"><b>Freedom to Make Life Choices</b>: % feeling free to make personal decisions.  
+    <br><b>Question:</b> *"Are you satisfied with your freedom to make life choices?"*  
+    <br><b>Source:</b> Gallup World Poll.</span></li>
+  
 </ul>
+
+## Variables 
+
+<ul style="line-height: 0.6;">
+<li><span style="font-size: 22px;"><b>Generosity</b>: % donating money to charity recently.  
+    <br><b>Question:</b> *"Did you donate money to charity in the last month?"*  
+    <br><b>Source:</b> Gallup World Poll.</span></li>
+  <li><span style="font-size: 22px;"><b>Perceptions of Corruption</b>: Trust in public institutions (inverse).  
+    <br><b>Question:</b> *"Is corruption widespread in the government or business?"*  
+    <br><b>Source:</b> Gallup World Poll.</span></li>
+  <li><span style="font-size: 22px;"><b>Positive Affect</b>: % of respondents who smiled or laughed a lot yesterday.  
+    <br><b>Question:</b> *"Did you smile or laugh a lot yesterday?"*  
+    <br><b>Source:</b> Gallup World Poll.</span></li>
+  <li><span style="font-size: 22px;"><b>Negative Affect</b>: % of respondents who experienced sadness, anger, or worry yesterday.  
+    <br><b>Question:</b> *"Did you experience sadness, anger, or worry yesterday?"*  
+    <br><b>Source:</b> Gallup World Poll.</span></li>
+</ul>
+
+
 ## Map
 
 ```{r}
@@ -282,7 +304,7 @@ ggplot(score_happiness |>
 ```
 
 
-## Happiness Score vs GDP per Capita by Region
+## Happiness Score vs GDP per Capita 
 
 ```{r}
 
@@ -330,6 +352,63 @@ p <- ggplot(merged_data, aes(x = OriginalGDP, y = Happiness, color = Region)) +
 print(p)
 
 
+```
+## Happiness Score vs GDP per Capita 
+```{r}
+
+# Filtramos los datos por año y hacemos el merge
+data_happiness_2023 <- data_happiness |>
+  filter(year == 2023)
+
+score_2024 <- score_happiness |>
+  filter(year == 2024)
+
+merged_data <- data_happiness_2023 |>
+  left_join(score_2024, by = "Country")
+
+# Lista de países que quieres resaltar
+highlight_countries <- c(
+  "Guatemala", "Paraguay", "Panama", "Indonesia", "Thailand", 
+  "Costa Rica", "Colombia", "Luxembourg", "Switzerland", 
+ "Finland", "Netherlands", "Lithuania", "Israel","Ukraine","Georgia","Turkiye","Ireland",
+ "Botswana","Egypt"
+)
+
+
+merged_data$Countries <- ifelse(merged_data$Country %in% highlight_countries, "Selected", "Others")
+
+
+
+# Crear gráfico
+p <- ggplot(merged_data, aes(x = OriginalGDP, y = Happiness, color = Countries)) +
+  geom_point(alpha = 0.8, size = 4) +  # Puntos más grandes y opacos
+  geom_smooth(method = "lm", color = "black", size = 1, se = FALSE) + 
+  scale_color_manual(
+    values = c(
+      "Selected" = "#E41A1C",  # Color para los países destacados
+      "others" = "gray"  # Color para los otros países
+    )
+  ) +
+  scale_x_continuous(
+    trans = 'log10', 
+    labels = scales::label_dollar(prefix = "USD ", scale = 1, accuracy = 1) 
+  ) +
+  labs(
+    x = "GDP per Capita (Log10 Scale, 2023)", 
+    y = "Happiness Score (2024)"
+  ) +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.position = "bottom"
+  ) +
+  # Etiquetas de los países destacados
+  geom_text(aes(label = ifelse(Country %in% highlight_countries, as.character(Country), "")),
+            hjust = 0.5, vjust = -0.5, size = 3.5, color = "black")
+
+print(p)
 ```
 
 
@@ -390,11 +469,11 @@ colores_region <- c(
 )
 
 
-paises_elegidos <- c(
+paises_elegidos <-  c(
   "Guatemala", "Paraguay", "Panama", "Indonesia", "Thailand", 
   "Costa Rica", "Colombia", "Luxembourg", "Switzerland", 
-  "Sweden", "Finland", "Netherlands", "Cambodia", "Slovenia", 
-  "Poland", "Lithuania", "Israel"
+ "Finland", "Netherlands", "Lithuania", "Israel","Ukraine","Georgia","Turkiye","Ireland",
+ "Botswana","Egypt"
 )
 
 
@@ -456,9 +535,21 @@ grafico_comb
 
 ## Conclusion  
 
-- Measuring happiness is more complex than it seems, as a direct question may oversimplify what “being happy” truly means.  
-- This analysis reveals that daily emotions (Positive Affect) and reported happiness are not perfectly aligned.
-- Happiness depends not only on what we feel daily but also on social, cultural, and economic factors that shape how people perceive their lives overall.  
+<ul style="line-height: 0.8;">
+  <li><span style="font-size: 22px;"><b>Happiness as Multifaceted</b>: Combines factors such as economy, health, social relationships, and daily emotions.</span></li>
+  <li><span style="font-size: 22px;"><b>Key Insights from Data</b>:</span></li>
+  <ul style="line-height: 0.6; margin-left: 20px;">
+    <li><span style="font-size: 22px;"><b>Economic Wealth</b>: Important but insufficient for high happiness levels.</span></li>
+    <li><span style="font-size: 22px;"><b>Standout Regions</b>:  
+      - Latin America & Southeast Asia: Exceed expectations due to positive emotions and strong social support.</span></li>
+    <li><span style="font-size: 22px;"><b>Positive Emotions</b>: Significant in certain cultures but not always reflected in overall happiness scores.</span></li>
+  </ul>
+  <li><span style="font-size: 22px;"><b>Personal Observations</b>:</span></li>
+  <ul style="line-height: 0.6; margin-left: 20px;">
+    <li><span style="font-size: 22px;">Wealthy countries (e.g., Luxembourg, Ireland): Ideal material conditions, yet fewer positive emotions.</span></li>
+    <li><span style="font-size: 22px;">Latin America: Joy and daily optimism are central to well-being.</span></li>
+
+</ul>
 
 
 
